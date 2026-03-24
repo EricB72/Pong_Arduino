@@ -1,3 +1,5 @@
+import processing.serial.*;
+
 //VARIABLES
 float pala1Y, pala2Y, ballX, ballY;
 float ballIncrement, ballSpeedX, ballSpeedY, palaSpeed, ballAngle;
@@ -12,6 +14,14 @@ boolean moveUp1, moveUp2, moveDown1, moveDown2;
 PFont textFont;
 
 //2k min, 5/6k max LDR
+Serial puerto;
+
+float sensorLuz = 0.5;  // valor entre 0 y 1
+float sensorPot = 0.5;
+float temp = 25f;
+
+float temperaturaInicial = -1;
+float velocidadBase = 5.0; 
 
 //SETUP
 void setup() {
@@ -21,8 +31,10 @@ void setup() {
   rectMode(CENTER);
   imageMode(CENTER);
 
-  //Set Variables to Arduino
-
+  //Set Variables to Arduino, sirve para probar los puertos, si no va hay que cambiar el [0] por 1, 2 etc
+  println(Serial.list());
+  puerto = new Serial(this, Serial.list()[0], 9600);
+  puerto.bufferUntil('\n'); // Esta linea llama el serialEvent() por cada linea que envia desde arduino
 
   //Other variables
   palaSpeed = 6;
@@ -41,12 +53,18 @@ void setup() {
 //DRAW
 void draw() {
   background(0);
-
+  
+  pala1Y = map(sensorLuz, 0, 1, sizeY/2, height - sizeY/2);
+  pala2Y = map(sensorPot, 0, 1, sizeY/2, height - sizeY/2);
+  
   //Draw
   rect(offsetX, pala1Y, sizeX, sizeY);
   rect(width - offsetX, pala2Y, sizeX, sizeY);
   circle(ballX, ballY, ballSize);
-
+  
+  // Velocidad bola
+  tempBall();
+  
   //Temporal
   movePalas();
   moveBall();
@@ -54,6 +72,8 @@ void draw() {
 }
 
 //FUNCTIONS
+
+/*
 void keyPressed() {
   if (key == 'w' || key == 'W') moveUp1 = true;
   if (key == 's' || key == 'S') moveDown1 = true;
@@ -64,13 +84,44 @@ void keyPressed() {
     key = 'p';
   }
 }
-
 void keyReleased() {
   if (key == 'w' || key == 'W') moveUp1 = false;
   if (key == 's' || key == 'S') moveDown1 = false;
   if (keyCode == UP) moveUp2 = false;
   if (keyCode == DOWN) moveDown2 = false;
 }
+*/
+
+void serialEvent(Serial p) {
+  String dato = p.readStringUntil('\n');
+  
+  if (dato != null) {
+    dato = trim(dato); // Limpia el salto de linea
+    
+    String[] valores = split(dato, ','); // Sacamos los 3 valores que nos da arduino
+    if (valores.length == 3) {
+    // Intenta pasar el valor a float, si falla no peta
+      try {
+        float l = float(valores[0]);
+        float po = float(valores[1]);
+        float t = float(valores[2]);
+
+        sensorLuz = constrain(l, 0, 1);
+        sensorPot = constrain(po, 0, 1);
+        temp = t;
+        
+        // Setea la temperatura incial la primera vez que pasa por esta parte del codigo
+        if (temperaturaInicial < 0) {
+          temperaturaInicial = temp;
+        }
+      }
+      catch(Exception e) {
+        println("Error al convertir el dato a float");
+      }
+    }
+  }
+}
+
 
 void movePalas() {
   if ((pala1Y - sizeY / 2) > 0)
@@ -123,12 +174,10 @@ void moveBall()
   if (!((ball_max.x < other2_min.x) || (ball_max.y < other2_min.y) || (other2_max.x < ball_min.x) || (other2_max.y < ball_min.y)) || !((ball_max.x < other1_min.x) || (ball_max.y < other1_min.y) || (other1_max.x < ball_min.x) || (other1_max.y < ball_min.y))) {
     //Ball hit
     ballSpeedX *= -1;
-    ballIncrement += 0.1f;
   }
 
   if ((ballY + ballSize / 2) > height || (ballY - ballSize / 2) < 0) {
     ballSpeedY *= -1;
-    ballIncrement += 0.1f;
   }
 
   if ((ballX - ballSize / 2) > width)
@@ -144,13 +193,26 @@ void moveBall()
   }
 }
 
+// Ajusta la temperatura de la bola con la velocidad
+void tempBall() {
+  if (temperaturaInicial >= 0) {
+    float diff = temp - temperaturaInicial;
+
+    // velocidad base 5, ajustada por la diferencia de temperatura
+    ballIncrement = velocidadBase + diff;
+
+    // límites para que no se vuelva injugable
+    ballIncrement = constrain(ballIncrement, 2, 15);
+  }
+}
+
 void Restart() {
   ballX = width/2;
   ballY = height/2;
   ballAngle = random(360);
   ballSpeedX = cos(ballAngle);
   ballSpeedY = sin(ballAngle);
-  ballIncrement = 5;
+  ballIncrement = velocidadBase;
   pala1Y = height/2; //Light sensor
   pala2Y = height/2; //Spin sensor
 }
