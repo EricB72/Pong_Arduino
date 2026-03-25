@@ -1,4 +1,4 @@
-import processing.serial.*;
+/*import processing.serial.*;
 
 //VARIABLES
 float pala1Y, pala2Y, ballX, ballY;
@@ -14,26 +14,29 @@ boolean moveUp1, moveUp2, moveDown1, moveDown2;
 PFont textFont;
 
 //2k min, 5/6k max LDR
-float luzInicial = -1;
+Serial puerto;
+
 float sensorLuz = 0.5;  // valor entre 0 y 1
 float sensorPot = 0.5;
-int rawLuz;
-int rawPot;
 float temp = 25f;
 
 float temperaturaInicial = -1;
 float velocidadBase = 5.0; 
 
-int value;
-
-void setup () {
+//SETUP
+void setup() {
   size(1200, 800);
   background(0);
 
   rectMode(CENTER);
   imageMode(CENTER);
-  commSetup();
-  
+
+  //Set Variables to Arduino, sirve para probar los puertos, si no va hay que cambiar el [0] por 1, 2 etc
+  println(Serial.list());
+  puerto = new Serial(this, Serial.list()[0], 9600);
+  puerto.bufferUntil('\n'); // Esta linea llama el serialEvent() por cada linea que envia desde arduino
+
+  //Other variables
   palaSpeed = 6;
   offsetX = 100;
   sizeX = 30;
@@ -47,33 +50,10 @@ void setup () {
   Restart();
 }
 
-
-
-void draw () {  
+//DRAW
+void draw() {
   background(0);
-  if ( isPortConnected() ) {
-    while (dataAvailable(CHANNEL_1)) {
-      rawLuz = getData(CHANNEL_1);
-      if (luzInicial < 0) luzInicial = rawLuz;
-      float diff = rawLuz - luzInicial;
-      float maxDiff = 920 - luzInicial;
-      sensorLuz = constrain(diff / maxDiff, 0, 1);
-      //println("Light Raw: " + rawLuz + " | Light: " + sensorLuz);
-    }
-    
-    while (dataAvailable(CHANNEL_2)) {
-      rawPot = getData(CHANNEL_2);
-      sensorPot = constrain(rawPot / 1000.0, 0, 1);
-      //println("Pot Raw: " + rawPot + " | Pot: " + sensorPot);
-    }
-    
-    while (dataAvailable(CHANNEL_3)) {
-      int rawTemp = getData(CHANNEL_3);
-      temp = rawTemp / 100.0;
-      if (temperaturaInicial < 0 && temp > 0) temperaturaInicial = temp;
-      //println("Temp Raw: " + rawTemp + " | Temp: " + temp);
-    }
-  }
+  
   pala1Y = map(sensorLuz, 0, 1, sizeY/2, height - sizeY/2);
   pala2Y = map(sensorPot, 0, 1, sizeY/2, height - sizeY/2);
   
@@ -89,8 +69,59 @@ void draw () {
   movePalas();
   moveBall();
   drawText();
-  commManager();
 }
+
+//FUNCTIONS
+
+/*
+void keyPressed() {
+  if (key == 'w' || key == 'W') moveUp1 = true;
+  if (key == 's' || key == 'S') moveDown1 = true;
+  if (keyCode == UP) moveUp2 = true;
+  if (keyCode == DOWN) moveDown2 = true;
+  if (key == 'r' || key == 'R') {
+    Restart();
+    key = 'p';
+  }
+}
+void keyReleased() {
+  if (key == 'w' || key == 'W') moveUp1 = false;
+  if (key == 's' || key == 'S') moveDown1 = false;
+  if (keyCode == UP) moveUp2 = false;
+  if (keyCode == DOWN) moveDown2 = false;
+}
+
+
+void serialEvent(Serial p) {
+  String dato = p.readStringUntil('\n');
+  
+  if (dato != null) {
+    dato = trim(dato); // Limpia el salto de linea
+    
+    String[] valores = split(dato, ','); // Sacamos los 3 valores que nos da arduino
+    if (valores.length == 3) {
+    // Intenta pasar el valor a float, si falla no peta
+      try {
+        float l = float(valores[0]);
+        float po = float(valores[1]);
+        float t = float(valores[2]);
+
+        sensorLuz = constrain(l, 0, 1);
+        sensorPot = constrain(po, 0, 1);
+        temp = t;
+        
+        // Setea la temperatura incial la primera vez que pasa por esta parte del codigo
+        if (temperaturaInicial < 0) {
+          temperaturaInicial = temp;
+        }
+      }
+      catch(Exception e) {
+        println("Error al convertir el dato a float");
+      }
+    }
+  }
+}
+
 
 void movePalas() {
   if ((pala1Y - sizeY / 2) > 0)
@@ -167,12 +198,10 @@ void tempBall() {
   if (temperaturaInicial >= 0) {
     float diff = temp - temperaturaInicial;
 
-    // Escalamos la influencia (IMPORTANTE)
-    float factor = diff * 0.5;  // ajusta esto
+    // velocidad base 5, ajustada por la diferencia de temperatura
+    ballIncrement = velocidadBase + diff;
 
-    ballIncrement = velocidadBase + factor;
-
-    // límites para que no se rompa el juego
+    // límites para que no se vuelva injugable
     ballIncrement = constrain(ballIncrement, 2, 15);
   }
 }
@@ -193,4 +222,4 @@ void drawText() {
   textFont(textFont);
   text(player1, width/2 - (200 + textSize / 2), textSize + 50);
   text(player2, width/2 + (200 - textSize / 2), textSize + 50);
-}
+}*/
